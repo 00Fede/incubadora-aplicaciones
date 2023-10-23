@@ -8,3 +8,6 @@ Este proyecto es una solución de Machine Learning que permite medir el estado d
 - [data](data): Contiene los archivos csv que se utilizan para entrenar el modelo.
 - [iac](iac): Infraestructura como código desplegada para la solución.
 - [Runbook](Runbook.docx): Documento donde se van condensando los hallazgos evidenciados en el proceso de construcción.
+
+## Para contribuir
+Cree una rama feature con la nueva funcionalidad o mejora que se va a implementar. A través de un pull request se revisará el código y se aprobará para hacer merge con la rama main.
