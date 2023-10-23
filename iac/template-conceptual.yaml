@@ -1,0 +1,91 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Main CloudFormation template that builds the conceptual audit framework
+Parameters:
+  applicationcode:
+    Type: String
+    Default: "cld0014001"
+  projectname:
+    Type: String
+    Default: "cloudcenter"
+  LZAccount:
+    Type: String
+    Default: "725911675077"
+  adminrolearn:
+    Type: String
+  dataengineerrolearn:
+    Type: String
+  environment:
+    Type: String
+    Default: "lab"
+    AllowedValues:
+      - "dev"
+      - "lab"
+      - "pdn"
+  filial:
+    Type: String
+    Default: "bancolombia"
+    AllowedValues:
+      - "bancolombia"
+      - "banistmo"
+      - "bam"
+      - "baes"
+      - "nequi"
+      - "corporativo"
+  landingstorageclass:
+    Type: String
+    Default: "ONEZONE_IA"
+
+
+Resources:
+# Layer para los componentes de auditoria en las funciones lambda
+  AuditLayerOld:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.8
+      Content:
+        S3Bucket:  !Sub ${applicationcode}-${projectname}-${environment}-${filial}-s3-code
+        S3Key: lambdacode/libraries/audit.zip
+      Description: Audit Layer
+      LayerName: 
+        Fn::Sub: "${applicationcode}-${projectname}-${environment}-audit-layer"
+
+
+
+# Función lambda para probar los conceptos de auditoria
+  ConceptualFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: "Función para probar los conceptos de auditoria"
+      FunctionName:
+        Fn::Sub: "${applicationcode}-${projectname}-${environment}-conceptual-lambda"
+      Handler: index.lambda_handler
+      MemorySize: 512
+      Role: 
+        Fn::ImportValue: 
+          Fn::Sub: "${applicationcode}-${projectname}-lambda-role"
+      Runtime: python3.8
+      Timeout: 900
+      Code:
+        S3Bucket: !Sub ${applicationcode}-${projectname}-${environment}-${filial}-s3-code
+        S3Key: lambdacode/organizations_extractors_Lambda.zip
+      KmsKeyArn: 
+        Fn::ImportValue: 
+          Fn::Sub: "${applicationcode}-${projectname}-arn-kms"
+      Environment:
+        Variables:
+          crossAccountRole: !Sub ${applicationcode}-${projectname}-cross-account-role
+          bucketS3: !Sub ${applicationcode}-${projectname}-${environment}-${filial}-s3-landing
+          bucketS3Raw: !Sub ${applicationcode}-${projectname}-${environment}-${filial}-s3-raw
+          LZAccount: !Sub ${LZAccount}
+          StorageClass: !Sub ${landingstorageclass}
+          applicationcode: !Ref applicationcode
+      Tags:
+        - Key: 'bancolombia:clasificacion-confidencialidad'
+          Value: 'interna'
+        - Key: 'bancolombia:clasificacion-integridad'
+          Value: 'sin impacto'
+        - Key: 'bancolombia:clasificacion-disponibilidad'
+          Value: 'sin impacto'
+      Layers:
+      - !Ref AuditLayerOld

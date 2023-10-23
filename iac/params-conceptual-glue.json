@@ -1,0 +1,8 @@
+[
+    { "ParameterKey": "projectname", "ParameterValue": "#{project-name}#" },
+    { "ParameterKey": "environment", "ParameterValue": "#{env}#" },
+    { "ParameterKey": "applicationcode", "ParameterValue": "#{application-code}#" },
+    { "ParameterKey": "filial", "ParameterValue": "#{filial}#" },
+    { "ParameterKey": "adminrolearn", "ParameterValue": "#{admin-role-arn}#" },
+    { "ParameterKey": "dataengineerrolearn", "ParameterValue": "#{data-engineer-role-arn}#" }
+]
