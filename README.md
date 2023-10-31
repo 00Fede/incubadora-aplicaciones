@@ -9,9 +9,8 @@ Este proyecto es una solución de Machine Learning que permite medir el estado d
 ## Estructura de carpetas y archivos
 - [code](code): Contiene el código SQL requerido para realizar la preextracción de datos desde el motor SQL de AWS(Athena).
 - [data](data): Contiene los archivos csv que se utilizan para entrenar el modelo.
-- [Runbook](Runbook.docx): Documento donde se van condensando los hallazgos evidenciados en el proceso de construcción.
+- [docs](docs): Contiene la documentación del proyecto, diagramas de arquitectura, etc.
 - [Analysis_Preprocessing.ipynb](Analysis_Preprocessing.ipynb): Notebook donde se realiza el análisis exploratorio de los datos y el preprocesamiento de los mismos.
-- [Arquitectura_Incubadora_de_Aplicaciones.pdf](Arquitectura_Incubadora_de_Aplicaciones.pdf): Diagrama de Arquitectura Cloud con los diferentes componentes de infraestructura.
 - [Model_Implementation.ipynb](Model_Implementation.ipynb): Notebook donde se implementa el modelo de Machine Learning.
 - El resto de notebooks son generados por el equipo de desarrollo para pruebas, análisis y demás, pueden encontrarse en la carpeta [notebooks](notebooks).
 
