@@ -1,4 +1,6 @@
-# incubadora-aplicaciones
+
+![logo](logo1.png)
+# Incubadora de aplicaciones
 Solución de ML para medir el estado de salud de las aplicaciones.
 
 ## Descripción
