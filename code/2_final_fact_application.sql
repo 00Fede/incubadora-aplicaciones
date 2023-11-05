@@ -3,7 +3,7 @@
 
 /* Consulta de Creación de la tabla relacionada que contedrá el dataset*/
 
-CREATE TABLE cc_dev_bancolombia_curated_db.fact_application(
+CREATE TABLE cc_pdn_bancolombia_curated_db.fact_application(
 application_id int,
 organization_id int,
 provider_id int,
@@ -13,7 +13,6 @@ FullResourcesCount bigint,
 DevResourcesCount bigint,
 QaResourcesCount bigint,
 PdnResourcesCount bigint,
-PdnResourcesSize decimal(5,3),
 FullAccountsCount bigint,
 DevAccountsCount bigint,
 QaAccountsCount bigint,
@@ -44,10 +43,17 @@ RedCostOptimizingDensity decimal(4,3),
 YellowCostOptimizingDensity decimal(4,3),
 ppn_tm timestamp,
 PdnResourcesSize decimal(5,3),
-Clasification string
+SecurityMaturityLevel decimal(4,3),
+FaultToleranceMaturityLevel decimal(4,3),
+PerformanceMaturityLevel decimal(4,3),
+CostOptimizingMaturityLevel decimal(4,3),
+OperationalExcellenceMaturityLevel decimal(4,3),
+MaturityLevel decimal(4,3),
+Classification string,
+ClassificationLevel int
   )
 PARTITIONED BY (organization_id, provider_id, snapshot_date_id)
-LOCATION 's3://cld0014001-cloudcenter-dev-bancolombia-s3-curated/fact_application'
+LOCATION 's3://cld0014001-cloudcenter-pdn-bancolombia-s3-curated/fact_application'
 TBLPROPERTIES (
   'table_type'='ICEBERG',
   'format'='parquet',
@@ -55,12 +61,12 @@ TBLPROPERTIES (
 )
 ;
 
-
+--ALTER TABLE cc_pdn_bancolombia_curated_db.fact_application ADD COLUMNS (ClassificationLevel int)
 
 
 /* Query de llenado de la tabla*/
 --
-INSERT INTO cc_dev_bancolombia_curated_db.fact_application 
+INSERT INTO cc_pdn_bancolombia_curated_db.fact_application 
 SELECT  
 p.application_id,
 o.organization_id, 
@@ -96,9 +102,25 @@ coalesce(tao2.RedCostOptimizingResourcesCount,0) RedCostOptimizingResourcesCount
 coalesce(tao.YellowCostOptimizingChecksCount,0) YellowCostOptimizingChecksCount,
 coalesce(tao2.YellowCostOptimizingResourcesCount,0) YellowCostOptimizingResourcesCount,
 
-0,0,0,0,0,0,0,0,
+cast(0.0 as decimal(4,3)),
+cast(0.0 as decimal(4,3)),
+cast(0.0 as decimal(4,3)),
+cast(0.0 as decimal(4,3)),
+cast(0.0 as decimal(4,3)),
+cast(0.0 as decimal(4,3)),
+cast(0.0 as decimal(4,3)),
+cast(0.0 as decimal(4,3)),
 
-cast(current_timestamp as timestamp) as ppn_tm
+cast(current_timestamp as timestamp) as ppn_tm,
+cast(0.0 as decimal(4,3)),
+cast(0.0 as decimal(4,3)),
+cast(0.0 as decimal(4,3)),
+cast(0.0 as decimal(4,3)),
+cast(0.0 as decimal(4,3)),
+cast(0.0 as decimal(4,3)),
+cast(0.0 as decimal(4,3)),
+'',
+0
 FROM (
 select lower(trim(d.applicationcode)) applicationcode, 
 count(1) countFull, count(case when a.environment in ('pdn', 'core') then 1 end ) countPdn, count(case when a.environment in ('qa') then 1 end ) countQa, count(case when a.environment in ('dev') then 1 end ) countDev,
@@ -106,14 +128,14 @@ count(distinct a.accountnumber) FullAccountsCount,
 count( distinct case when a.environment in ('dev') then a.accountnumber else Null end  ) DevAccountsCount,
 count( distinct case when a.environment in ('qa') then a.accountnumber else Null end  ) QaAccountsCount,
 count( distinct case when a.environment in ('pdn', 'core') then a.accountnumber else Null end  ) PdnAccountsCount
-from cc_dev_bancolombia_curated_db.dim_resource d 
-inner join cc_dev_bancolombia_curated_db.dim_account a on d.accountid = a.accountnumber and a.active = True and a.status = 'ACTIVE' and a.environment in ('pdn', 'core', 'qa', 'dev')
+from cc_pdn_bancolombia_curated_db.dim_resource d 
+inner join cc_pdn_bancolombia_curated_db.dim_account a on d.accountid = a.accountnumber and a.active = True and a.status = 'ACTIVE' and a.environment in ('pdn', 'core', 'qa', 'dev')
 where d.active = True and d.applicationcode is not null and d.applicationcode != '' 
 group by lower(trim(d.applicationcode)) 
 ) r
-inner join cc_dev_bancolombia_curated_db.dim_application p on  r.applicationcode = p.applicationcode
-inner join cc_dev_bancolombia_curated_db.dim_organization o on  o.name = 'bancolombia'
-inner join cc_dev_bancolombia_curated_db.dim_provider dp on  dp.shortname = 'aws'
+inner join cc_pdn_bancolombia_curated_db.dim_application p on  r.applicationcode = p.applicationcode
+inner join cc_pdn_bancolombia_curated_db.dim_organization o on  o.name = 'bancolombia'
+inner join cc_pdn_bancolombia_curated_db.dim_provider dp on  dp.shortname = 'aws'
 
 left outer join (
     select
@@ -128,7 +150,7 @@ left outer join (
     count(distinct case when status = 'Red' and category = 'cost_optimizing' then checkid else Null end)  RedCostOptimizingChecksCount,
     count(distinct case when status = 'Yellow' and category = 'cost_optimizing' then checkid else Null end)  YellowCostOptimizingChecksCount
 
-    FROM "cc_dev_bancolombia_curated_db"."tmp_checks_by_resource" group by applicationcode
+    FROM "cc_pdn_bancolombia_curated_db"."tmp_checks_by_resource" group by applicationcode
 ) tao on tao.applicationcode = r.applicationcode
 
 left outer join (
@@ -143,7 +165,7 @@ left outer join (
     count(distinct case when status = 'Red' and category = 'cost_optimizing' then resource_id else Null end)  RedCostOptimizingResourcesCount,
     count(distinct case when status = 'Yellow' and category = 'cost_optimizing' then resource_id else Null end)  YellowCostOptimizingResourcesCount
 
-    FROM "cc_dev_bancolombia_curated_db"."tmp_checks_by_resource" group by applicationcode
+    FROM "cc_pdn_bancolombia_curated_db"."tmp_checks_by_resource" group by applicationcode
 ) tao2 on tao2.applicationcode = r.applicationcode    
 
 
@@ -151,26 +173,54 @@ left outer join (
 
 
 /* Consultas de actualización para calcular algunas caracteristicas adicionales de las aplicacinoes*/
-UPDATE cc_dev_bancolombia_curated_db.fact_application set redsecuritydensity = redsecurityresourcescount  / cast(pdnresourcescount as decimal(10,3) ) where pdnresourcescount > 0;
-UPDATE cc_dev_bancolombia_curated_db.fact_application set yellowsecuritydensity = yellowsecurityresourcescount  / cast(pdnresourcescount as decimal(10,3)) where pdnresourcescount > 0;
+UPDATE cc_pdn_bancolombia_curated_db.fact_application set redsecuritydensity = redsecurityresourcescount  / cast(pdnresourcescount as decimal(10,3) ) where pdnresourcescount > 0;
+UPDATE cc_pdn_bancolombia_curated_db.fact_application set yellowsecuritydensity = yellowsecurityresourcescount  / cast(pdnresourcescount as decimal(10,3)) where pdnresourcescount > 0;
 
-UPDATE cc_dev_bancolombia_curated_db.fact_application set redfaulttolerancedensity = redfaulttoleranceresourcescount  / cast(pdnresourcescount as decimal(10,3) ) where pdnresourcescount > 0;
-UPDATE cc_dev_bancolombia_curated_db.fact_application set yellowfaulttolerancedensity = yellowfaulttoleranceresourcescount  / cast(pdnresourcescount as decimal(10,3)) where pdnresourcescount > 0;
+UPDATE cc_pdn_bancolombia_curated_db.fact_application set redfaulttolerancedensity = redfaulttoleranceresourcescount  / cast(pdnresourcescount as decimal(10,3) ) where pdnresourcescount > 0;
+UPDATE cc_pdn_bancolombia_curated_db.fact_application set yellowfaulttolerancedensity = yellowfaulttoleranceresourcescount  / cast(pdnresourcescount as decimal(10,3)) where pdnresourcescount > 0;
 
-UPDATE cc_dev_bancolombia_curated_db.fact_application set redperformancedensity = redperformanceresourcescount  / cast(pdnresourcescount as decimal(10,3) ) where pdnresourcescount > 0;
-UPDATE cc_dev_bancolombia_curated_db.fact_application set yellowperformancedensity = yellowperformanceresourcescount  / cast(pdnresourcescount as decimal(10,3)) where pdnresourcescount > 0;
+UPDATE cc_pdn_bancolombia_curated_db.fact_application set redperformancedensity = redperformanceresourcescount  / cast(pdnresourcescount as decimal(10,3) ) where pdnresourcescount > 0;
+UPDATE cc_pdn_bancolombia_curated_db.fact_application set yellowperformancedensity = yellowperformanceresourcescount  / cast(pdnresourcescount as decimal(10,3)) where pdnresourcescount > 0;
 
-UPDATE cc_dev_bancolombia_curated_db.fact_application set redcostoptimizingdensity = redcostoptimizingresourcescount  / cast(pdnresourcescount as decimal(10,3) ) where pdnresourcescount > 0;
-UPDATE cc_dev_bancolombia_curated_db.fact_application set yellowcostoptimizingdensity = yellowcostoptimizingresourcescount  / cast(pdnresourcescount as decimal(10,3)) where pdnresourcescount > 0;
+UPDATE cc_pdn_bancolombia_curated_db.fact_application set redcostoptimizingdensity = redcostoptimizingresourcescount  / cast(pdnresourcescount as decimal(10,3) ) where pdnresourcescount > 0;
+UPDATE cc_pdn_bancolombia_curated_db.fact_application set yellowcostoptimizingdensity = yellowcostoptimizingresourcescount  / cast(pdnresourcescount as decimal(10,3)) where pdnresourcescount > 0;
 
-UPDATE cc_dev_bancolombia_curated_db.fact_application set pdnresourcessize = log10(pdnresourcescount) where pdnresourcescount > 0;
+UPDATE cc_pdn_bancolombia_curated_db.fact_application set pdnresourcessize = ceiling(log10(pdnresourcescount+1)) where pdnresourcescount > 0;
 
---green ..  saludable .. no requiere atención ... (sin checks en yellow red -- o con poco tamaño y baja densidad de checks en yellow ) ....  
-update "cc_dev_bancolombia_curated_db"."fact_application" set clasification = 'Green' where pdnresourcescount > 0  and (redcostoptimizingdensity=0 and redperformancedensity=0 and redfaulttolerancedensity = 0 and redsecuritydensity = 0) and (yellowcostoptimizingdensity<0.001 and yellowperformancedensity<0.001 and yellowfaulttolerancedensity <0.001 and yellowsecuritydensity <0.001) and pdnresourcessize < 0.5;
+delete from cc_pdn_bancolombia_curated_db.fact_application where pdnresourcescount = 0;
 
---yellow ... requiere atención moderada ... (con cualquier densidad en yellow y muy bajas en red y poco tamaño o mediano)
-update "cc_dev_bancolombia_curated_db"."fact_application" set clasification = 'Yellow' where pdnresourcescount > 0  and (redcostoptimizingdensity between 0.1 and 0.5  or redperformancedensity between 0.1 and 0.5 or redfaulttolerancedensity between 0.1 and 0.5 or redsecuritydensity between 0.1 and 0.5) and pdnresourcessize < 1;
 
---red ... en estado crítico y para atención inmediata  (densidades en rojo mas elevadas en cualquier tamaño de aplicación)
-update  "cc_dev_bancolombia_curated_db"."fact_application" set clasification = 'Red' where pdnresourcescount > 0  and (redcostoptimizingdensity >= 0.5 or redperformancedensity >= 0.5 or redfaulttolerancedensity >= 0.5 or redsecuritydensity >= 0.5) ;
+--Se calculan los niveles de madurez por pilar 
+UPDATE cc_pdn_bancolombia_curated_db.fact_application set 
+securitymaturitylevel = 0.7*(1-redsecuritydensity) + 0.3*(1-yellowsecuritydensity),
+faulttolerancematuritylevel = 0.7*(1-redfaulttolerancedensity) + 0.3*(1-yellowfaulttolerancedensity),
+performancematuritylevel = 0.7*(1-redperformancedensity) + 0.3*(1-yellowperformancedensity),
+costoptimizingmaturitylevel = 0.7*(1-redcostoptimizingdensity) + 0.3*(1-yellowcostoptimizingdensity),
+operationalexcellencematuritylevel = null;
+
+UPDATE cc_pdn_bancolombia_curated_db.fact_application set 
+maturitylevel = securitymaturitylevel*(222.0/334.0) + faulttolerancematuritylevel*(71.0/334.0) + performancematuritylevel*(20.0/334.0) + costoptimizingmaturitylevel*(21.0/334.0) 
+;
+
+
+
+--CLASIFICACION DE EXPERTO 
+--green ..  saludable .. no requiere atención ... 
+update "cc_pdn_bancolombia_curated_db"."fact_application" set classification = 'Green', classificationlevel = 1 where 
+maturitylevel >= 0.95 
+
+--yellow ... bajo nivel de atención  ... 
+update "cc_pdn_bancolombia_curated_db"."fact_application" set classification = 'Yellow', classificationlevel = 2 where 
+maturitylevel < 0.95 and maturitylevel >= 0.90 
+
+
+--orange ... requiere atención pronta y oportuna ... 
+update "cc_pdn_bancolombia_curated_db"."fact_application" set classification = 'Orange', classificationlevel = 3 where 
+maturitylevel < 0.90 and maturitylevel >= 0.80 
+
+
+--red ... en estado crítico y para atención inmediata  
+update "cc_pdn_bancolombia_curated_db"."fact_application" set classification = 'Red', classificationlevel = 4 where 
+maturitylevel < 0.80
+
 
