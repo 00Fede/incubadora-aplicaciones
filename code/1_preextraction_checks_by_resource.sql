@@ -292,3 +292,25 @@ CREATE TABLE "cc_pdn_bancolombia_curated_db"."tmp_checks_by_resource" AS
         and dr.applicationcode != ''
         and fr.diacarga='20231105'
 
+
+
+
+CREATE TABLE `ta_checks_by_resource`(
+  resource_id bigint, 
+  applicationcode string, 
+  category string, 
+  checkid string, 
+  status string)
+PARTITIONED BY (category)
+LOCATION 's3://cld0014001-cloudcenter-pdn-bancolombia-s3-curated/ta_checks_by_resource'
+TBLPROPERTIES (
+  'table_type'='ICEBERG',
+  'format'='parquet',
+  'write_target_data_file_size_bytes'='536870912' 
+)
+;
+
+insert into ta_checks_by_resource 
+select * from tmp_checks_by_resource 
+
+

@@ -50,7 +50,8 @@ CostOptimizingMaturityLevel decimal(4,3),
 OperationalExcellenceMaturityLevel decimal(4,3),
 MaturityLevel decimal(4,3),
 Classification string,
-ClassificationLevel int
+ClassificationLevel int,
+MaturityTarget decimal(4,3)
   )
 PARTITIONED BY (organization_id, provider_id, snapshot_date_id)
 LOCATION 's3://cld0014001-cloudcenter-pdn-bancolombia-s3-curated/fact_application'
@@ -62,6 +63,8 @@ TBLPROPERTIES (
 ;
 
 --ALTER TABLE cc_pdn_bancolombia_curated_db.fact_application ADD COLUMNS (ClassificationLevel int)
+--ALTER TABLE cc_pdn_bancolombia_curated_db.fact_application ADD COLUMNS (MaturityTarget decimal(4,3))
+
 
 
 /* Query de llenado de la tabla*/
@@ -120,7 +123,8 @@ cast(0.0 as decimal(4,3)),
 cast(0.0 as decimal(4,3)),
 cast(0.0 as decimal(4,3)),
 '',
-0
+0,
+0.95
 FROM (
 select lower(trim(d.applicationcode)) applicationcode, 
 count(1) countFull, count(case when a.environment in ('pdn', 'core') then 1 end ) countPdn, count(case when a.environment in ('qa') then 1 end ) countQa, count(case when a.environment in ('dev') then 1 end ) countDev,
@@ -191,12 +195,23 @@ delete from cc_pdn_bancolombia_curated_db.fact_application where pdnresourcescou
 
 
 --Se calculan los niveles de madurez por pilar 
+--UPDATE cc_pdn_bancolombia_curated_db.fact_application set 
+--securitymaturitylevel = 0.7*(1-redsecuritydensity) + 0.3*(1-yellowsecuritydensity),
+--faulttolerancematuritylevel = 0.7*(1-redfaulttolerancedensity) + 0.3*(1-yellowfaulttolerancedensity),
+--performancematuritylevel = 0.7*(1-redperformancedensity) + 0.3*(1-yellowperformancedensity),
+--costoptimizingmaturitylevel = 0.7*(1-redcostoptimizingdensity) + 0.3*(1-yellowcostoptimizingdensity),
+--operationalexcellencematuritylevel = null;
+
+
+--Se calculan los niveles de madurez por pilar dandole mas peso a los densidad roja 
 UPDATE cc_pdn_bancolombia_curated_db.fact_application set 
-securitymaturitylevel = 0.7*(1-redsecuritydensity) + 0.3*(1-yellowsecuritydensity),
-faulttolerancematuritylevel = 0.7*(1-redfaulttolerancedensity) + 0.3*(1-yellowfaulttolerancedensity),
-performancematuritylevel = 0.7*(1-redperformancedensity) + 0.3*(1-yellowperformancedensity),
-costoptimizingmaturitylevel = 0.7*(1-redcostoptimizingdensity) + 0.3*(1-yellowcostoptimizingdensity),
+securitymaturitylevel = 0.7*(1-sqrt(redsecuritydensity)) + 0.3*(1-yellowsecuritydensity),
+faulttolerancematuritylevel = 0.7*(1-sqrt(redfaulttolerancedensity)) + 0.3*(1-yellowfaulttolerancedensity),
+performancematuritylevel = 0.7*(1-sqrt(redperformancedensity)) + 0.3*(1-yellowperformancedensity),
+costoptimizingmaturitylevel = 0.7*(1-sqrt(redcostoptimizingdensity)) + 0.3*(1-yellowcostoptimizingdensity),
 operationalexcellencematuritylevel = null;
+
+
 
 UPDATE cc_pdn_bancolombia_curated_db.fact_application set 
 maturitylevel = securitymaturitylevel*(222.0/334.0) + faulttolerancematuritylevel*(71.0/334.0) + performancematuritylevel*(20.0/334.0) + costoptimizingmaturitylevel*(21.0/334.0) 
@@ -206,21 +221,32 @@ maturitylevel = securitymaturitylevel*(222.0/334.0) + faulttolerancematurityleve
 
 --CLASIFICACION DE EXPERTO 
 --green ..  saludable .. no requiere atención ... 
-update "cc_pdn_bancolombia_curated_db"."fact_application" set classification = 'Green', classificationlevel = 1 where 
+update "cc_pdn_bancolombia_curated_db"."fact_application" set classification = '1-Saludable', classificationlevel = 1 where 
 maturitylevel >= 0.95 
 
 --yellow ... bajo nivel de atención  ... 
-update "cc_pdn_bancolombia_curated_db"."fact_application" set classification = 'Yellow', classificationlevel = 2 where 
+update "cc_pdn_bancolombia_curated_db"."fact_application" set classification = '2-Riesgo Bajo', classificationlevel = 2 where 
 maturitylevel < 0.95 and maturitylevel >= 0.90 
 
 
 --orange ... requiere atención pronta y oportuna ... 
-update "cc_pdn_bancolombia_curated_db"."fact_application" set classification = 'Orange', classificationlevel = 3 where 
+update "cc_pdn_bancolombia_curated_db"."fact_application" set classification = '3-Riesgo Alto', classificationlevel = 3 where 
 maturitylevel < 0.90 and maturitylevel >= 0.80 
 
 
 --red ... en estado crítico y para atención inmediata  
-update "cc_pdn_bancolombia_curated_db"."fact_application" set classification = 'Red', classificationlevel = 4 where 
+update "cc_pdn_bancolombia_curated_db"."fact_application" set classification = '4-Estado Crítico', classificationlevel = 4 where 
 maturitylevel < 0.80
+
+--purple ... en observación 
+update "cc_pdn_bancolombia_curated_db"."fact_application" set classification = '0-En Observación', classificationlevel = 0 where 
+classification in ('1-Saludable') and (redsecurityresourcescount >0 or redfaulttoleranceresourcescount > 0)
+
+
+
+--Meta de Madurez
+update "cc_pdn_bancolombia_curated_db"."fact_application" set maturitytarget = 0.95
+
+
 
 
