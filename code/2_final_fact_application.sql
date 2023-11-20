@@ -64,6 +64,7 @@ TBLPROPERTIES (
 
 --ALTER TABLE cc_pdn_bancolombia_curated_db.fact_application ADD COLUMNS (ClassificationLevel int)
 --ALTER TABLE cc_pdn_bancolombia_curated_db.fact_application ADD COLUMNS (MaturityTarget decimal(4,3))
+--ALTER TABLE cc_pdn_bancolombia_curated_db.fact_application ADD COLUMNS (realapplicationcode string)
 
 
 
@@ -249,4 +250,10 @@ update "cc_pdn_bancolombia_curated_db"."fact_application" set maturitytarget = 0
 
 
 
-
+--Adicionar el codigo de aplicación real 
+MERGE INTO "cc_pdn_bancolombia_curated_db"."fact_application" as fact
+USING "cc_pdn_bancolombia_curated_db"."dim_application" as dim
+ON fact.application_id = dim.application_id
+WHEN  MATCHED 
+THEN UPDATE SET realapplicationcode = dim.applicationcode
+      
